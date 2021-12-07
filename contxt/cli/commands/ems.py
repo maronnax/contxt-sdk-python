@@ -141,7 +141,7 @@ def bills(
 @click.option(
     "--include",
     default="all",
-    callback=csv_callback(options=["bills", "spend", "usage"]),
+    callback=csv_callback(options=["bills", "spend", "usage", "mains"]),
     help="Data to export",
 )
 @click.option("--start", type=click.DateTime(), default=LAST_WEEK.isoformat(), help="Start time")
@@ -178,22 +178,57 @@ def export(
                 usage = clients.ems.get_usage(
                     facility_id=facility.id, start=start, end=end, interval="daily"
                 )
-                Serializer.to_csv(usage.values, fpath / "ems" / "usage.csv")
+                Serializer.to_csv(usage.values, fpath / "ems" / "total_usage_daily.csv")
+
+                usage = clients.ems.get_usage(
+                    facility_id=facility.id, start=start, end=end, interval="monthly"
+                )
+                Serializer.to_csv(usage.values, fpath / "ems" / "total_usage_monthly.csv")
 
             # Main service data
             if "mains" in include:
-                data: Dict[datetime, Dict[str, Any]] = defaultdict(dict)
                 services = clients.ems.get_main_services(facility_id=facility.id)
-                for service in services:
-                    for (t, v) in clients.iot.get_time_series_for_field(
-                        field=service.usage_field,
-                        start_time=start,
-                        end_time=end,
-                        window=Window.MINUTELY,
-                        per_page=5000,
-                    ):
-                        data[t][service.usage_field.field_human_name] = v
-                Serializer.to_csv(data, fpath / "ems" / "main_service_usage.csv")
+
+                for (window, windowstr) in [(Window.HOURLY, "hourly"), (Window.MINUTELY, "minute")]:
+#                for (window, windowstr) in [(Window.HOURLY, "hourly")]:
+#                for (window, windowstr) in [(Window.MINUTELY, "minute")]:
+
+                    usage = defaultdict(dict)
+                    demand = defaultdict(dict)
+
+                    print(f"Downloading {windowstr}.")
+                    for service in services:
+                        for (t, v) in clients.iot.get_time_series_for_field(
+                                field=service.usage_field,
+                                start_time=start,
+                                end_time=end,
+                                window=window,
+                                per_page=5000,
+                        ):
+                            usage[t][f"{service.name}"] = v
+
+                        for (t, v) in clients.iot.get_time_series_for_field(
+                            field=service.demand_field,
+                            start_time=start,
+                            end_time=end,
+                            window=window,
+                            per_page=5000,
+                        ):
+                            demand[t][f"{service.name}"] = v
+                    else:
+                        # Format downloaded data in the format dictreader wants
+                        output_usage = [{
+                            "time": t.strftime("%Y-%m-%d %H:%M:%S%z"),
+                            **usage[t],
+                        } for t in sorted(usage.keys())]
+
+                        output_demand = [{
+                            "time": t.strftime("%Y-%m-%d %H:%M:%S%z"),
+                            **demand[t],
+                        } for t in sorted(demand.keys())]
+
+                        Serializer.to_csv(output_usage, fpath / "ems" / f"main_service_usage_{windowstr}.csv", header = True)
+                        Serializer.to_csv(output_demand, fpath / "ems" / f"main_service_demand_{windowstr}.csv", header = True)
 
     print(f"Wrote data to {output}")
 

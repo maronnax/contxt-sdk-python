@@ -1,6 +1,7 @@
 from csv import DictWriter
 from datetime import date, datetime
 from enum import Enum
+from itertools import chain
 from json import dump, dumps
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
@@ -16,7 +17,8 @@ class Serializer:
         if isinstance(obj, dict):
             return obj.keys()
         elif isinstance(obj, (list, tuple)) and obj:
-            return list(sorted(set().union(*(Serializer._keys(i) for i in obj))))
+            # Using a dict preserves the order of keys within the iterated subobjects
+            return {k: True for k in chain(*[Serializer._keys(i) for i in obj])}.keys()
         else:
             return []
 
@@ -172,7 +174,7 @@ class Serializer:
         :param path: path to export
         :type path: Path
         :param header: write header row, defaults to True
-        :param header: bool, optional
+        :type header: bool, optional
         """
 
         # Get dict

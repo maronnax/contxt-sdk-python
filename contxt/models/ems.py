@@ -76,7 +76,19 @@ class UtilityPeriod(ApiObject):
     value: int
 
 
-UtilitySpendPeriod = UtilityPeriod
+@dataclass
+class UtilityDatePeriod(ApiObject):
+    _api_fields: ClassVar = (
+        ApiField("date", data_type=Parsers.monthdate),
+        ApiField("value", data_type=int),
+    )
+
+    date: date
+    value: int
+
+
+
+UtilitySpendPeriod = UtilityDatePeriod
 UtilityUsagePeriod = UtilityPeriod
 
 

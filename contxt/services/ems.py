@@ -107,6 +107,34 @@ class EmsService(ConfiguredApi):
         )
         return UtilityUsage.from_api(resp)
 
+
+    def get_spend(
+        self,
+        facility_id: int,
+        interval: int,
+        resource_type: ResourceType = ResourceType.ELECTRIC,
+        start: date = date.today() - timedelta(days=3600),
+        end: date = date.today(),
+        pro_forma: bool = False,
+        exclude_account_charges: bool = False,
+    ) -> UtilitySpend:
+        """Get monthly utility spend for facility `facility_id` and resource
+        `resource_type` (for now, this must be "electric" but will be expanded).
+        Note `start_date` defaults to 10 years ago (the API's maximum limit) and
+        `end_date` defaults to today."""
+        resp = self.get(
+            f"facilities/{facility_id}/utility/spend/{interval}",
+            params={
+                "type": resource_type.value,
+                "date_start": start.strftime("%Y-%m"),
+                "date_end": end.strftime("%Y-%m"),
+                "pro_forma": pro_forma,
+                "exclude_account_charges": exclude_account_charges,
+            },
+        )
+        return UtilitySpend.from_api(resp)
+
+
     def get_utility_contracts_for_facility(self, facility_id: int) -> Iterable[UtilityContract]:
         return PagedRecords(
             api=self, url=f"facilities/{facility_id}/contracts", record_parser=UtilityContract.from_api

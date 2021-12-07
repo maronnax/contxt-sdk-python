@@ -31,6 +31,10 @@ class Parsers:
         return _datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
 
     @staticmethod
+    def monthdate(timestamp: str) -> _datetime:
+        return _datetime.strptime(timestamp, "%Y-%m").date()
+
+    @staticmethod
     def unknown(value: Any) -> Any:
         # First, try a general parser (supports strings, numbers, tuples,
         # lists, dicts, booleans (True/False strings only), and None)
